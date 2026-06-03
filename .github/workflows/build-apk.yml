@@ -20,14 +20,30 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Configurar Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - name: Instalar Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Dar permissão ao Gradle
-        run: chmod +x ./gradlew
+      - name: Aceitar licenças Android
+        run: yes | sdkmanager --licenses || true
+
+      - name: Instalar plataforma Android
+        run: |
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Configurar Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Ver arquivos do projeto
+        run: |
+          echo "Arquivos na raiz:"
+          ls -la
+          echo "Arquivos do app:"
+          ls -la app || true
 
       - name: Compilar APK debug
-        run: ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace --info
 
       - name: Listar APK criado
         run: |
@@ -40,7 +56,7 @@ jobs:
           name: Express-Consumo-OC-APK-Nativo
           path: app/build/outputs/apk/debug/*.apk
 
-      - name: Enviar log completo se reproduzir
+      - name: Enviar logs se falhar
         if: failure()
         uses: actions/upload-artifact@v4
         with:
