@@ -3,12 +3,13 @@ name: Build APK Android Nativo - Express Consumo OC
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
 
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+
     steps:
       - name: Baixar código
         uses: actions/checkout@v4
@@ -17,48 +18,33 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: 17
 
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-      - name: Aceitar licenças e instalar SDK
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-
-      - name: Instalar Gradle 8.7
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
-
-      - name: Conferir estrutura
-        run: |
-          pwd
-          find . -maxdepth 5 -type f | sort
-          java -version
-          gradle --version
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          ls "$ANDROID_HOME/platforms" || true
+      - name: Dar permissão ao Gradle
+        run: chmod +x ./gradlew
 
       - name: Compilar APK debug
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Listar APK criado
         run: |
-          set -o pipefail
-          gradle --no-daemon clean assembleDebug --stacktrace --info 2>&1 | tee gradle_build_full.log
+          echo "Procurando APK gerado..."
+          find . -name "*.apk" -type f
 
       - name: Enviar APK como artifact
         uses: actions/upload-artifact@v4
         with:
           name: Express-Consumo-OC-APK-Nativo
           path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
 
-      - name: Enviar logs se falhar
+      - name: Enviar log completo se reproduzir
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: gradle-build-logs
           path: |
-            gradle_build_full.log
-            **/build/reports/**/*
-          if-no-files-found: ignore
+            **/build/reports/**
+            **/build/outputs/logs/**
